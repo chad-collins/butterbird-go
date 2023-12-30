@@ -2,12 +2,11 @@ package bot
 
 import (
 	"errors"
-	"strings"
 
 	"github.com/bwmarrin/discordgo"
 	"github.com/chad-collins/butterbird-go/internal/config"
+	"github.com/chad-collins/butterbird-go/internal/gpt"
 	"github.com/chad-collins/butterbird-go/internal/logger"
-	"github.com/chad-collins/butterbird-go/internal/utils/openAiUtils"
 	"github.com/sashabaranov/go-openai"
 )
 
@@ -49,7 +48,7 @@ func NewBot() *Bot {
 
 // Start begins the bot's operation.
 func (b *Bot) Start() {
-	b.Session.AddHandler(b.messageCreate)
+	b.Session.AddHandler(b.OnMessageReceived)
 	b.Session.Identify.Intents = discordgo.IntentsGuildMessages
 
 	if err := b.Session.Open(); err != nil {
@@ -58,28 +57,17 @@ func (b *Bot) Start() {
 	logger.Info(config.BotName + " is online!")
 }
 
-func (b *Bot) messageCreate(s *discordgo.Session, m *discordgo.MessageCreate) {
-	if m.Author.Bot {
-		return // Ignore bot messages
+// OnMessageReceived is called when a message is received.
+func (b *Bot) OnMessageReceived(s *discordgo.Session, m *discordgo.MessageCreate) {
+	handler := GetMessageHandler(m)
+
+	prompt, shouldHandle, messageContent := handler()
+
+	if !shouldHandle {
+		return // Ignore non-valid messages
 	}
 
-	messageContent := m.Content
-	var prompt string
-
-	if m.Author.Username == "kroby1" && !strings.HasPrefix(m.Content, "hey "+config.BotPrefix) && !strings.HasPrefix(m.Content, config.BotPrefix) {
-		prompt = openAiUtils.KrobyPrompt()
-	} else if strings.HasPrefix(m.Content, "hey "+config.BotPrefix) || strings.HasPrefix(m.Content, config.BotPrefix) {
-		messageContent = strings.TrimSpace(strings.TrimPrefix(m.Content, "hey "+config.BotPrefix))
-		prompt = openAiUtils.GeneralPrompt()
-	} else {
-		return
-	}
-
-	if len(messageContent) == 0 {
-		return // No content to process
-	}
-
-	res, err := openAiUtils.BuildPrompt(b.OpenAiClient, messageContent, prompt, "")
+	res, err := gpt.BuildPrompt(b.OpenAiClient, messageContent, prompt, "")
 	if err != nil {
 		logger.Warn(err, "Transforming message")
 		return
