@@ -1,30 +1,34 @@
-// logger/logger.go
 package logger
 
 import (
-	"fmt"
 	"log"
 	"os"
 	"time"
 )
 
-// Info logs a general informational message with a timestamp.
+// Custom loggers for different log levels
+var (
+	infoLogger  = log.New(os.Stdout, "INFO: ", 0)
+	warnLogger  = log.New(os.Stdout, "WARN: ", 0)
+	fatalLogger = log.New(os.Stderr, "FATAL: ", 0)
+)
+
+// Info logs a general informational message.
 func Info(message string) {
-	fmt.Printf("%s: %s\n", time.Now().Format(time.RFC3339), message)
+	infoLogger.Printf("%s %s\n", time.Now().Format(time.RFC3339), message)
 }
 
-// Warn logs a warning message with additional context and a timestamp.
+// Warn logs a warning message with additional context.
 func Warn(err error, context string) {
 	if err != nil {
-		fmt.Printf("%s - Warning [%s]: %v\n", time.Now().Format(time.RFC3339), context, err)
+		warnLogger.Printf("%s [%s]: %v\n", time.Now().Format(time.RFC3339), context, err)
 	}
 }
 
-// Fatal logs a critical error with additional context and a timestamp, then terminates the program.
+// Fatal logs a critical error with additional context, then terminates the program.
 func Fatal(err error, context string) {
 	if err != nil {
-		log.Fatalf("%s - Fatal [%s]: %v\n", time.Now().Format(time.RFC3339), context, err)
-		// Terminate the program with a non-zero exit code
-		os.Exit(1)
+		fatalLogger.Fatalf("%s [%s]: %v\n", time.Now().Format(time.RFC3339), context, err)
+		// os.Exit(1) is implicit in log.Fatalf
 	}
 }

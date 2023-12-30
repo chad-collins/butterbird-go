@@ -4,11 +4,10 @@ import (
 	"errors"
 	"strings"
 
+	"github.com/bwmarrin/discordgo"
 	"github.com/chad-collins/butterbird-go/internal/config"
 	"github.com/chad-collins/butterbird-go/internal/logger"
 	"github.com/chad-collins/butterbird-go/internal/utils/openAiUtils"
-
-	"github.com/bwmarrin/discordgo"
 	"github.com/sashabaranov/go-openai"
 )
 
@@ -23,15 +22,15 @@ type Bot struct {
 func NewBot() *Bot {
 	session, err := discordgo.New("Bot " + config.DiscordToken)
 	if err != nil {
-		logger.Fatal(err, "Failed to create Discord session")
+		logger.Fatal(err, "Creating Discord session")
 	}
-	logger.Info("Discord session created successfully")
+	logger.Info("Discord session created")
 
 	openAiClient := openai.NewClient(config.OpenAiToken)
 	if openAiClient == nil {
-		logger.Fatal(errors.New("OpenAI client initialization failed"), "Failed to create OpenAI session")
+		logger.Fatal(errors.New("initialization failure"), "Creating OpenAI client")
 	}
-	logger.Info("OpenAI client initialized successfully")
+	logger.Info("OpenAI client initialized")
 
 	bot := &Bot{
 		Session:      session,
@@ -40,71 +39,54 @@ func NewBot() *Bot {
 
 	user, err := bot.Session.User("@me")
 	if err != nil {
-		logger.Fatal(err, "Failed to access bot user details")
+		logger.Fatal(err, "Accessing bot user details")
 	}
 	bot.ID = user.ID
-	logger.Info("Bot user details retrieved successfully")
+	logger.Info("Bot user details retrieved")
 
 	return bot
 }
 
 // Start begins the bot's operation.
-func (b *Bot) Start() error {
+func (b *Bot) Start() {
 	b.Session.AddHandler(b.messageCreate)
 	b.Session.Identify.Intents = discordgo.IntentsGuildMessages
 
-	err := b.Session.Open()
-	if err != nil {
-		return err
+	if err := b.Session.Open(); err != nil {
+		logger.Fatal(err, "Opening WebSocket connection")
 	}
-	logger.Info("Websocket connection to Discord opened successfully")
 	logger.Info(config.BotName + " is online!")
-	return nil
 }
 
 func (b *Bot) messageCreate(s *discordgo.Session, m *discordgo.MessageCreate) {
-	logger.Info("Message received")
-
-	// Ignore messages sent by bots, including itself
 	if m.Author.Bot {
-		logger.Info("Message from a bot, ignored.")
-		return
+		return // Ignore bot messages
 	}
 
 	messageContent := m.Content
 	var prompt string
 
-	// Check if the message is from "kroby1" and does not start with specific prefixes
-	if m.Author.Username == "kroby1" && (!strings.HasPrefix(m.Content, "hey "+config.BotPrefix) || !strings.HasPrefix(m.Content, config.BotPrefix)) {
-		logger.Info("Special processing for kroby1 without specific prefixes")
+	if m.Author.Username == "kroby1" && !strings.HasPrefix(m.Content, "hey "+config.BotPrefix) && !strings.HasPrefix(m.Content, config.BotPrefix) {
 		prompt = openAiUtils.KrobyPrompt()
 	} else if strings.HasPrefix(m.Content, "hey "+config.BotPrefix) || strings.HasPrefix(m.Content, config.BotPrefix) {
-		logger.Info("Message starts with the prefix")
-		// Remove the prefix for processing
 		messageContent = strings.TrimSpace(strings.TrimPrefix(m.Content, "hey "+config.BotPrefix))
 		prompt = openAiUtils.GeneralPrompt()
 	} else {
 		return
 	}
 
-	// Check if the message content is not empty
 	if len(messageContent) == 0 {
-		logger.Info("No content in message to process")
-		return
+		return // No content to process
 	}
 
-	// Process the message content with OpenAI
 	res, err := openAiUtils.BuildPrompt(b.OpenAiClient, messageContent, prompt, "")
 	if err != nil {
-		logger.Warn(err, "Failed to transform message")
+		logger.Warn(err, "Transforming message")
 		return
 	}
-	logger.Info("Message transformed successfully")
 
-	// Send the transformed message
 	if _, err := s.ChannelMessageSend(m.ChannelID, res); err != nil {
-		logger.Warn(err, "Failed to send message")
+		logger.Warn(err, "Sending transformed message")
 		return
 	}
-	logger.Info("Transformed message sent successfully")
 }

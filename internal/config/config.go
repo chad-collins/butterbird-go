@@ -21,20 +21,18 @@ type configStruct struct {
 	BotName      string `json:"BotName"`
 }
 
-func ReadConfig() error {
+func ReadConfig() {
 	logger.Info("Reading config file...")
 
 	file, err := os.ReadFile("./config.json")
 	if err != nil {
-		logger.Fatal(err, "Could not read "+string(file))
-		return err
+		logger.Fatal(err, "Could not read config file")
 	}
 
 	config := &configStruct{}
 	err = json.Unmarshal(file, config)
 	if err != nil {
-		logger.Fatal(err, "Could not unmarshal "+string(file))
-		return err
+		logger.Fatal(err, "Could not unmarshal config data")
 	}
 
 	DiscordToken = config.DiscordToken
@@ -43,5 +41,4 @@ func ReadConfig() error {
 	BotName = config.BotName
 
 	logger.Info("Config Loaded")
-	return nil
 }

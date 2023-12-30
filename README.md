@@ -76,7 +76,5 @@ Thanks to the following people who have contributed to this project:
 
 If you want to contact me, you can reach me at `<chad@chadcollins.net>`.
 
-
-
 ---
 
