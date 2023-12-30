@@ -1,4 +1,4 @@
-package openAiUtils
+package gpt
 
 import (
 	"context"
